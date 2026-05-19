@@ -1,0 +1,58 @@
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# Logs and temporary outputs
+*.log
+runs/
+logs/
+output/
+outputs/
+
+# Archives and compressed datasets
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# Large generated datasets
+**/basketball-instants-dataset/
+**/CHALLENGE/
+**/VIEWDS/
+**/dataset/
+**/*.pickle
+**/*.pkl
+**/*.npz
+**/*.npy
+
+# Images and generated visualizations
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.gif
+*.webp
+*.tif
+*.tiff
+
+# Keep the manual input/output images at the workspace root
+!/image.png
+!/output.png
+
+# Keep model weights for reproduction
+!**/models/
+!**/models/*.pth
+!**/models/*.pt
+!**/models/*.pkl
+!**/models/*.ckpt
+!**/models/*.onnx
