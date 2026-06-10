@@ -9,13 +9,10 @@ __pycache__/
 .venv/
 venv/
 env/
-
-# Logs and temporary outputs
-*.log
-runs/
-logs/
-output/
-outputs/
+.claude/
+.cursor/
+.vscode/
+.codex/
 
 # Archives and compressed datasets
 *.zip
@@ -35,24 +32,10 @@ outputs/
 **/*.npz
 **/*.npy
 
-# Images and generated visualizations
-*.png
-*.jpg
-*.jpeg
-*.bmp
-*.gif
-*.webp
-*.tif
-*.tiff
+# dino: 忽略 timm 权重缓存
+dino/models/
 
-# Keep the manual input/output images at the workspace root
-!/image.png
-!/output.png
+# dino: 忽略所有 checkpoint，但保留 model_final.pth
+dino/checkpoints/**/*.pth
+!dino/checkpoints/**/model_final.pth
 
-# Keep model weights for reproduction
-!**/models/
-!**/models/*.pth
-!**/models/*.pt
-!**/models/*.pkl
-!**/models/*.ckpt
-!**/models/*.onnx

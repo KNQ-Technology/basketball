@@ -22,9 +22,12 @@ torch.manual_seed(4212)
 torch.use_deterministic_algorithms(True)
 
 
-def train(cfg):
+def train(cfg, output_dir=""):
     nEpoch = 500
-    outputDir = os.path.join("output", datetime.now().strftime("%d_%m_%Y %H:%M:%S"))
+    if output_dir:
+        outputDir = output_dir
+    else:
+        outputDir = os.path.join("output", datetime.now().strftime("%d_%m_%Y %H:%M:%S"))
     os.makedirs(outputDir, exist_ok=True)
 
     device = torch.device("cuda")
@@ -80,6 +83,7 @@ def train(cfg):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Field calibration training script")
     parser.add_argument("--config_file", default="", help="path to config file", type=str)
+    parser.add_argument("--output_dir", default="", help="path to save checkpoints", type=str)
     args = parser.parse_args()
 
     if args.config_file != "":
@@ -87,4 +91,4 @@ if __name__ == "__main__":
     #cfg.merge_from_list(args.opts)
     cfg.freeze()
 
-    train(cfg)
+    train(cfg, args.output_dir)

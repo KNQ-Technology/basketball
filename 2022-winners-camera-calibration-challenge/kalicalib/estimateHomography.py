@@ -41,7 +41,7 @@ def getFieldPoints2d():
     return points
 
 
-def drawField(img, H, color, thickness):
+def drawField(img, H, line_color, curve_color, thickness):
 
     mulCoefs = [[1, 1],
                 [1, -1],
@@ -53,10 +53,10 @@ def drawField(img, H, color, thickness):
                       [FIELD_LENGTH, 0]]
 
     for mulCoef, translateCoef in zip(mulCoefs, translateCoefs):
-        drawQuarterField(img, H, color, thickness, mulCoef, translateCoef)
+        drawQuarterField(img, H, line_color, curve_color, thickness, mulCoef, translateCoef)
 
 
-def drawQuarterField(img, H, color, thickness, mulCoef, translateCoef):
+def drawQuarterField(img, H, line_color, curve_color, thickness, mulCoef, translateCoef):
 
     fieldPoints = np.float32([[
         [0, 0],
@@ -78,18 +78,18 @@ def drawQuarterField(img, H, color, thickness, mulCoef, translateCoef):
 
     pointsToDraw = cv2.perspectiveTransform(fieldPoints, H)[0].astype(int)
 
-    cv2.line(img, tuple(pointsToDraw[0]), tuple(pointsToDraw[1]), color, thickness)
-    cv2.line(img, tuple(pointsToDraw[2]), tuple(pointsToDraw[0]), color, thickness)
+    cv2.line(img, tuple(pointsToDraw[0]), tuple(pointsToDraw[1]), line_color, thickness)
+    cv2.line(img, tuple(pointsToDraw[2]), tuple(pointsToDraw[0]), line_color, thickness)
 
-    cv2.line(img, tuple(pointsToDraw[3]), tuple(pointsToDraw[4]), color, thickness)
-    cv2.line(img, tuple(pointsToDraw[4]), tuple(pointsToDraw[5]), color, thickness)
+    cv2.line(img, tuple(pointsToDraw[3]), tuple(pointsToDraw[4]), line_color, thickness)
+    cv2.line(img, tuple(pointsToDraw[4]), tuple(pointsToDraw[5]), line_color, thickness)
 
-    cv2.line(img, tuple(pointsToDraw[6]), tuple(pointsToDraw[7]), color, thickness)
-    cv2.line(img, tuple(pointsToDraw[1]), tuple(pointsToDraw[8]), color, thickness)
+    cv2.line(img, tuple(pointsToDraw[6]), tuple(pointsToDraw[7]), line_color, thickness)
+    cv2.line(img, tuple(pointsToDraw[1]), tuple(pointsToDraw[8]), line_color, thickness)
 
-    drawFieldCircle(img, H, mulCoef, translateCoef, color, thickness, np.array([580, FIELD_WIDTH / 2]), 180, 0, np.pi / 2)
-    drawFieldCircle(img, H, mulCoef, translateCoef, color, thickness, np.array([157.5, FIELD_WIDTH / 2]), 675, 0, np.pi / 2 - 0.211)
-    drawFieldCircle(img, H,  mulCoef, translateCoef, color, thickness, np.array([FIELD_LENGTH / 2, FIELD_WIDTH / 2]), 180, np.pi / 2, np.pi)
+    drawFieldCircle(img, H, mulCoef, translateCoef, curve_color, thickness, np.array([580, FIELD_WIDTH / 2]), 180, 0, np.pi / 2)
+    drawFieldCircle(img, H, mulCoef, translateCoef, curve_color, thickness, np.array([157.5, FIELD_WIDTH / 2]), 675, 0, np.pi / 2 - 0.211)
+    drawFieldCircle(img, H, mulCoef, translateCoef, curve_color, thickness, np.array([FIELD_LENGTH / 2, FIELD_WIDTH / 2]), 180, np.pi / 2, np.pi)
 
 
 def drawFieldCircle(img, H,  mulCoef, translateCoef,
@@ -124,7 +124,7 @@ def drawTemplateFigure(fieldPoints):
         ])
 
     img = np.ones((int(FIELD_WIDTH * s + m * 2), int(FIELD_LENGTH * s + m * 2), 3), dtype = np.uint8) * 255
-    drawField(img, H, (255, 0, 0), 5)
+    drawField(img, H, (0, 0, 255), (0, 0, 255), 2)
 
     pointsToDraw = cv2.perspectiveTransform(fieldPoints, H)[0].astype(int)[:-2]
     for p in pointsToDraw:
@@ -145,8 +145,8 @@ def drawCalibCourt(calib, img):
     points = Point3D(points.T)
     proj = calib.project_3D_to_2D(points).T.astype(int)
 
-    color = (255, 255, 0)
-    thickness = 2
+    color = (0, 0, 255)
+    thickness = 1
 
     cv2.line(img, proj[0], proj[1], color, thickness)
     cv2.line(img, proj[1], proj[2], color, thickness)
@@ -191,8 +191,16 @@ def estimateCalib(model, device, fieldPoints2d, fieldPoints3d, oriImg, visualiza
     return estimateCalibHM(heatmaps, npImg, fieldPoints2d, fieldPoints3d, oriHeight, oriWidth, visualization)
 
 
-def estimateCalibHM(heatmaps, npImg, fieldPoints2d, fieldPoints3d, oriHeight, oriWidth, visualization):
+def estimateCalibHM(heatmaps, npImg, fieldPoints2d, fieldPoints3d, oriHeight, oriWidth, visualization, draw_points=True, draw_calib_court=True, top_k=None, threshold=0.0):
+    """估计单应矩阵并在图像上绘制球场线。
 
+    Args:
+        threshold: 置信度阈值，低于该值的关键点被过滤掉（默认 0.0 即不过滤）。
+        top_k:     在阈值过滤后，再取置信度最高的 K 个点参与计算（None 表示全用）。
+
+    Returns:
+        calib: 成功时返回 Calib 对象；当阈值过滤后有效点数不足 top_k 时返回 None。
+    """
     out = heatmaps[0].cpu().numpy()
     kpImg = out[-1].copy()
     kpImg /= np.max(kpImg)
@@ -200,8 +208,6 @@ def estimateCalibHM(heatmaps, npImg, fieldPoints2d, fieldPoints3d, oriHeight, or
     if visualization:
         cv2.imshow("kpImg", kpImg)
 
-    srcPoints = []
-    dstPoints = []
     nbPoints = out.shape[0] - 1 - 2
 
     pixelScores = np.swapaxes(out, 0, 2)
@@ -209,17 +215,13 @@ def estimateCalibHM(heatmaps, npImg, fieldPoints2d, fieldPoints3d, oriHeight, or
 
     pixelMax = (pixelScores == pixelMaxScores)
     pixelMap = np.swapaxes(pixelMax, 0, 2).astype(np.uint8)
-    #pixelMap = (out > 0.82) * pixelMap
 
     pixelMap = (out > 0) * pixelMap
-    #pixelMap = (out > 0.7) * out
-    #pixelMap = (out > 0.95) * pixelMap
 
+    # 收集所有检测到的点，同时记录每点的置信度（heatmap 通道峰值）
+    candidates = []   # list of (conf, srcPt, dstPt, idx, pImg)
     for i in range(nbPoints):
         if True:
-            #maxVal = np.max(out[i])
-            #print(i, maxVal)
-
             M = cv2.moments(pixelMap[i])
             # calculate x,y coordinate of center
             if M["m00"] == 0:
@@ -233,11 +235,34 @@ def estimateCalibHM(heatmaps, npImg, fieldPoints2d, fieldPoints3d, oriHeight, or
 
         p *= np.array([4, 4])
         pImg = [round(p[0]), round(p[1])]
-        cv2.circle(npImg, (pImg[1], pImg[0]), 5, (255, 0, 0), -1)
-        cv2.putText(npImg, str(i), (pImg[1], pImg[0] - 15), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
+        conf = float(out[i].max())
+        # 置信度阈值过滤
+        if conf < threshold:
+            continue
+        candidates.append((conf, fieldPoints2d[0][i], p[::-1], i, pImg))
 
-        srcPoints.append(fieldPoints2d[0][i])
-        dstPoints.append(p[::-1])
+    # 按置信度降序排列，取前 top_k 个（None 表示全用）
+    candidates.sort(key=lambda x: x[0], reverse=True)
+
+    # 阈值过滤后，有效点数不足 top_k 时提前返回失败
+    if top_k is not None and len(candidates) < top_k:
+        print(
+            f"Error: 置信度 ≥ {threshold} 的有效关键点数量为 {len(candidates)}，"
+            f"少于 --top-k {top_k}，输出原始图像。"
+        )
+        return None, None
+
+    if top_k is not None:
+        candidates = candidates[:top_k]
+
+    srcPoints = []
+    dstPoints = []
+    for conf, src, dst, idx, pImg in candidates:
+        srcPoints.append(src)
+        dstPoints.append(dst)
+        if draw_points:
+            cv2.circle(npImg, (pImg[1], pImg[0]), 5, (255, 0, 0), -1)
+            cv2.putText(npImg, str(idx), (pImg[1], pImg[0] - 15), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
 
     calib = Calib.from_P(np.array(MEAN_H), width=oriWidth, height=oriHeight)
     if len(srcPoints) >= 4:
@@ -267,18 +292,18 @@ def estimateCalibHM(heatmaps, npImg, fieldPoints2d, fieldPoints3d, oriHeight, or
         Hest = None
 
     if Hest is not None:
-        pass
-        #drawField(npImg, Hest, (0, 0 , 255), 6)
+        drawField(npImg, Hest, (0, 0, 255), (0, 0, 255), 2)
     else:
         print("Default calib")
 
-    drawCalibCourt(calib, npImg)
+    if draw_calib_court:
+        drawCalibCourt(calib, npImg)
 
     if visualization:
         cv2.imshow("test2", npImg)
         cv2.waitKey()
 
-    return calib
+    return calib, Hest
 
 
 def calcAngle(v1, v2):
