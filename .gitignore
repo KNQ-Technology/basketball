@@ -39,3 +39,10 @@ dino/models/
 dino/checkpoints/**/*.pth
 !dino/checkpoints/**/model_final.pth
 
+# Videos to keep out of git
+videos/video2.mp4
+videos/video3.mp4
+
+# Local reproduction artifacts
+2022-winners-camera-calibration-challenge/reproduce/
+

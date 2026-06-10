@@ -3,15 +3,12 @@
 dino/train.py — 基于 ConvNeXt (DINOv3 预训练) 的篮球场关键点检测微调脚本
 
 用法示例（在 basketball/ 目录下运行）：
-  python dino/train.py \\
-    --arch convnext_tiny.dinov3_lvd1689m \\
-    --config-file 2022-winners-camera-calibration-challenge/configs/train_sviewds_full_dataset.yml \\
-    --epochs 500 \\
-    --freeze-backbone-epochs 50
+  python dino/train.py --arch convnext_small.dinov3_lvd1689m --checkpoint-dir dino/checkpoints/small_finetune --log-file dino/checkpoints/small_finetune/train.log --epochs 1000 --freeze-backbone-epochs 100
 """
 import sys
 import os
 import argparse
+import logging
 import random
 from datetime import datetime
 
@@ -47,6 +44,45 @@ torch.manual_seed(4212)
 
 
 # ──────────────────────────────────────────────────────────────
+# 日志
+# ──────────────────────────────────────────────────────────────
+class _TqdmHandler(logging.Handler):
+    """将日志通过 tqdm.write 输出，避免破坏进度条。"""
+    def emit(self, record):
+        tqdm.write(self.format(record))
+
+
+def setup_logger(log_file: str | None = None) -> logging.Logger:
+    """创建同时写控制台和日志文件的 logger。
+
+    若 log_file 为 None，则只输出到控制台。
+    """
+    logger = logging.getLogger('dino.train')
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()          # 避免重复添加 handler
+
+    fmt = logging.Formatter(
+        '%(asctime)s  %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
+
+    # 控制台（经由 tqdm.write，不破坏进度条）
+    ch = _TqdmHandler()
+    ch.setFormatter(fmt)
+    logger.addHandler(ch)
+
+    # 文件（可选）
+    if log_file:
+        os.makedirs(os.path.dirname(os.path.abspath(log_file)), exist_ok=True)
+        fh = logging.FileHandler(log_file, encoding='utf-8')
+        fh.setFormatter(fmt)
+        logger.addHandler(fh)
+        tqdm.write(f'[Train] 日志保存至: {log_file}')
+
+    return logger
+
+
+# ──────────────────────────────────────────────────────────────
 # 辅助函数
 # ──────────────────────────────────────────────────────────────
 def save_checkpoint(path: str, model: torch.nn.Module, arch: str,
@@ -72,7 +108,7 @@ def load_checkpoint(path: str, model: torch.nn.Module,
 # ──────────────────────────────────────────────────────────────
 # 主训练函数
 # ──────────────────────────────────────────────────────────────
-def train(cfg, args):
+def train(cfg, args, logger: logging.Logger):
     n_epoch   = args.epochs
     ckpt_dir  = args.checkpoint_dir
     arch      = args.arch
@@ -81,7 +117,8 @@ def train(cfg, args):
     os.makedirs(ckpt_dir, exist_ok=True)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"[Train] device={device}  arch={arch}  epochs={n_epoch}")
+    logger.info(f"device={device}  arch={arch}  epochs={n_epoch}  lr={args.lr}")
+    logger.info(f"checkpoint_dir={ckpt_dir}")
 
     # ── 模型 ──────────────────────────────────────────────────
     model = KaliCalibConvNeXt(
@@ -94,7 +131,7 @@ def train(cfg, args):
     start_epoch = 0
     if args.resume:
         start_epoch = load_checkpoint(args.resume, model, device)
-        print(f"[Train] 从 {args.resume} 恢复，已完成 {start_epoch} epoch")
+        logger.info(f"从 {args.resume} 恢复，已完成 {start_epoch} epoch")
 
     # ── 损失函数（与原脚本完全一致）──────────────────────────
     hm_h = cfg.INPUT.MULTIPLICATIVE_FACTOR * cfg.INPUT.GENERATED_VIEW_SIZE[1] // 4
@@ -126,10 +163,12 @@ def train(cfg, args):
     # ── 训练循环 ──────────────────────────────────────────────
     model.train()
 
+    avg_loss = 0.0  # 初始化，保证 finally 保存时有值
+
     for e in range(start_epoch, n_epoch):
         # 在 freeze_bb epoch 结束后解冻 backbone
         if e == freeze_bb and freeze_bb > 0:
-            print(f"[Train] Epoch {e+1}: 解冻 backbone，开始全网络微调")
+            logger.info(f"Epoch {e+1}: 解冻 backbone，开始全网络微调")
             for p in model.backbone.parameters():
                 p.requires_grad_(True)
             # 重建 optimizer，让 backbone 参数也被优化
@@ -158,17 +197,20 @@ def train(cfg, args):
 
         lr_scheduler.step()
         avg_loss = total_loss / max(n_iter, 1)
-        tqdm.write(f"Epoch {e+1}/{n_epoch}  avg_loss={avg_loss:.8e}  lr={optimizer.param_groups[0]['lr']:.2e}")
+        logger.info(
+            f"Epoch {e+1}/{n_epoch}  avg_loss={avg_loss:.8e}"
+            f"  lr={optimizer.param_groups[0]['lr']:.2e}"
+        )
 
         if (e + 1) % args.save_every == 0:
             ckpt_path = os.path.join(ckpt_dir, f"model_{e+1}.pth")
             save_checkpoint(ckpt_path, model, arch, e + 1, avg_loss)
-            tqdm.write(f"  → saved: {ckpt_path}")
+            logger.info(f"  → saved: {ckpt_path}")
 
     # 训练结束后保存最终模型
     final_path = os.path.join(ckpt_dir, "model_final.pth")
     save_checkpoint(final_path, model, arch, n_epoch, avg_loss)
-    print(f"[Train] 完成，最终模型: {final_path}")
+    logger.info(f"完成，最终模型: {final_path}")
 
 
 # ──────────────────────────────────────────────────────────────
@@ -211,12 +253,21 @@ if __name__ == '__main__':
         metavar='DIR',
         help="checkpoint 保存目录（必填，例如 dino/checkpoints/exp1）"
     )
+    parser.add_argument(
+        '--log-file',
+        default=None,
+        metavar='FILE',
+        help="日志文件路径（如 dino/checkpoints/exp1/train.log）；不指定则只输出到控制台"
+    )
 
     args = parser.parse_args()
+
+    # 初始化 logger
+    logger = setup_logger(args.log_file)
 
     # 加载 challenge 配置
     if args.config_file:
         cfg.merge_from_file(args.config_file)
     cfg.freeze()
 
-    train(cfg, args)
+    train(cfg, args, logger)
