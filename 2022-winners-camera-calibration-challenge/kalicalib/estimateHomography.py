@@ -29,6 +29,21 @@ IMG_HEIGHT = 540
 FIELD_LENGTH = 2800
 FIELD_WIDTH = 1500
 
+# Keep the original challenge court template for every marking except the
+# 3-point line.  The NBA arc is 23 ft 9 in from the basket center, and the
+# straight corner segment is 3 ft from the sideline.
+CM_PER_FOOT = 30.48
+THREE_POINT_BASKET_X = 157.5
+THREE_POINT_RADIUS = 23.75 * CM_PER_FOOT
+THREE_POINT_SIDELINE_MARGIN = 3 * CM_PER_FOOT
+THREE_LINE_Y = THREE_POINT_SIDELINE_MARGIN
+THREE_LINE_X = THREE_POINT_BASKET_X + np.sqrt(
+    THREE_POINT_RADIUS ** 2 - (FIELD_WIDTH / 2 - THREE_LINE_Y) ** 2
+)
+THREE_ARC_STOP_ANGLE = np.arcsin(
+    (FIELD_WIDTH / 2 - THREE_LINE_Y) / THREE_POINT_RADIUS
+)
+
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
@@ -67,8 +82,8 @@ def drawQuarterField(img, H, line_color, curve_color, thickness, mulCoef, transl
         [580, 505],
         [580, 750],
 
-        [0, 90],
-        [299, 90],
+        [0, THREE_LINE_Y],
+        [THREE_LINE_X, THREE_LINE_Y],
 
         [FIELD_LENGTH / 2, FIELD_WIDTH / 2],
     ]])
@@ -88,7 +103,7 @@ def drawQuarterField(img, H, line_color, curve_color, thickness, mulCoef, transl
     cv2.line(img, tuple(pointsToDraw[1]), tuple(pointsToDraw[8]), line_color, thickness)
 
     drawFieldCircle(img, H, mulCoef, translateCoef, curve_color, thickness, np.array([580, FIELD_WIDTH / 2]), 180, 0, np.pi / 2)
-    drawFieldCircle(img, H, mulCoef, translateCoef, curve_color, thickness, np.array([157.5, FIELD_WIDTH / 2]), 675, 0, np.pi / 2 - 0.211)
+    drawFieldCircle(img, H, mulCoef, translateCoef, curve_color, thickness, np.array([THREE_POINT_BASKET_X, FIELD_WIDTH / 2]), THREE_POINT_RADIUS, 0, THREE_ARC_STOP_ANGLE)
     drawFieldCircle(img, H, mulCoef, translateCoef, curve_color, thickness, np.array([FIELD_LENGTH / 2, FIELD_WIDTH / 2]), 180, np.pi / 2, np.pi)
 
 
