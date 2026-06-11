@@ -35,9 +35,8 @@ env/
 # dino: 忽略 timm 权重缓存
 dino/models/
 
-# dino: 忽略所有 checkpoint，但保留 model_final.pth
-dino/checkpoints/**/*.pth
-!dino/checkpoints/**/model_final.pth
+# dino: 忽略所有 checkpoint
+dino/checkpoints/
 
 # Videos to keep out of git
 videos/video2.mp4
