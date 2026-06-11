@@ -47,11 +47,29 @@ pip install -r requirements.txt
 
 ---
 
+## 模型下载
+
+由于 github 的单文件限制，需要在 https://huggingface.co/Jinqi-T/Basketball-Calibration/resolve/main/model_tiny_final.pth 下载 tiny 权重，并保存为 ```dino/checkpoints/tiny_finetune/model_final.pth```
+(small 权重仍在训练当中)
+
+
 ## 单张图片推理 — `process_image.py`
 
 ### 快速开始
 ```bash
 ./process_image.sh
+```
+
+```bash 
+python process_image.py images/image1.png \
+  --output-dir results \
+  --model dino/checkpoints/tiny_finetune/model_final.pth \
+  --valid-model 2022-winners-camera-calibration-challenge/models/model_challenge.pth \
+  --valid-diff-threshold 80 \
+  --threshold 0.9 \
+  --check 10 \
+  --clahe --draw-keypoints --print-coords \
+  --verbose
 ```
 
 ### 输出文件
@@ -153,6 +171,19 @@ python process_image.py images/image1.png \
 ### 快速开始
 ```bash
 ./process_video.sh
+```
+
+```bash
+python process_video.py videos/video1.mp4 \
+  --output-dir results \
+  --model dino/checkpoints/tiny_finetune/model_final.pth \
+  --valid-model 2022-winners-camera-calibration-challenge/models/model_challenge.pth \
+  --valid-diff-threshold 80 \
+  --threshold 0.9 \
+  --check 10 \
+  --frame-step 1 \
+  --clahe \
+  --verbose
 ```
 
 ### 抽帧逻辑
