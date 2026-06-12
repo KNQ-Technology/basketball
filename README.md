@@ -10,6 +10,7 @@
 basketball/
 ├── process_image.py                            # 单张图片推理脚本
 ├── process_image.sh                            # 示例调用脚本
+├── heuristic.py                                # 启发式边线检测（RGB 原型 + SVM 决策边界）
 ├── process_video.py                            # 视频推理脚本（抽帧 + 汇总 JSON）
 ├── dino/                                       # ConvNeXt 升级模型（训练 + 定义）
 │   ├── model_convnext.py                       #   KaliCalibConvNeXt 模型定义
@@ -49,8 +50,7 @@ pip install -r requirements.txt
 
 ## 模型下载
 
-由于 github 的单文件限制，需要在 https://huggingface.co/Jinqi-T/Basketball-Calibration/resolve/main/model_tiny_final.pth 下载 tiny 权重，并保存为 ```dino/checkpoints/tiny_finetune/model_final.pth```
-(small 权重仍在训练当中)
+由于 github 的单文件限制，需要在 https://huggingface.co/Jinqi-T/Basketball-Calibration/resolve/main/model_tiny_final.pth 下载 tiny 权重，并保存为 ```dino/checkpoints/tiny_finetune/model_final.pth```。small 权重在 https://huggingface.co/Jinqi-T/Basketball-Calibration/resolve/main/model_small_final.pth ，但是实测效果不好，不建议使用。
 
 
 ## 单张图片推理 — `process_image.py`
@@ -161,6 +161,100 @@ python process_image.py images/image1.png \
 ```
 
 `status` 取值：`"success"` / `"check_failed"` / `"validation_failed"` / `"insufficient_points"`
+
+### 启发式边线检测 — `heuristic.py`
+
+在 `process_image.py` 输出的关键点基础上，**不依赖场地几何模型**，通过颜色启发式自动估计场地边线。脚本读取原图与 `_result.json`，在 RGB 空间中训练软间隔线性 SVM，并绘制决策边界（`decision = 0` 的等高线）。
+
+#### 算法流程
+
+```
+_result.json 关键点
+        │
+        ▼
+┌───────────────────────────────────────────────────────────┐
+│ 阶段 1：地板颜色原型（class0）                              │
+│   从场地内侧关键点集合中，取各点像素 RGB                     │
+│   迭代剔除与当前均值欧式距离最远的点，直至剩 1 个 → P1       │
+└───────────────────────────┬───────────────────────────────┘
+                            │ P1 的 RGB
+                            ▼
+┌───────────────────────────────────────────────────────────┐
+│ 阶段 2：边线颜色原型（class1）                              │
+│   从边线附近关键点集合中，以 P1 为中心取 pixel×pixel 正方形  │
+│   保留与 P1 RGB 距离 > threshold 的像素，求均值 → value     │
+│   对各关键点的 value 重复阶段 1 的迭代剔除 → P2             │
+└───────────────────────────┬───────────────────────────────┘
+                            │ class0 = P1 RGB, class1 = P2 value
+                            ▼
+┌───────────────────────────────────────────────────────────┐
+│ 阶段 3：全图 SVM 分类                                       │
+│   每个像素按距 class0 / class1 的 RGB 欧式距离打伪标签       │
+│   在 RGB 空间训练软间隔线性 SVM（LinearSVC）                │
+│   提取 decision=0 等高线作为边线决策边界                     │
+└───────────────────────────────────────────────────────────┘
+```
+
+**阶段 1 关键点**（地板区域，共 45 个）：
+`66–76, 55–57, 59–61, 42–44, 46–48, 27–37, 14–24`（JSON 中未识别到的自动跳过）
+
+**阶段 2 关键点**（边线附近，共 36 个）：
+`78–90, 77, 64, 51, 38, 25, 12–0, 13, 26, 39, 52, 65`
+
+#### 输出示意
+
+下图以 `image5` 为例：红色圆点 **P1** 为阶段 1 选中的地板原型点，绿色圆点 **P2** 为阶段 2 选中的边线原型点，紫色细线为 SVM 决策边界。
+
+![heuristic boundary example](results/image5_rgb_svm_boundary.png)
+
+#### 快速开始
+
+需先运行 `process_image.py` 生成对应的 `_result.json`：
+
+```bash
+python heuristic.py \
+  --image images/image5 \
+  --result-json results/image5_result.json \
+  --verbose
+```
+
+#### 输出文件
+
+| 文件 | 说明 |
+|------|------|
+| `<image>_rgb_svm_boundary.png` | 原图叠加 P1、P2 标记与 SVM 决策边界 |
+
+#### 参数说明
+
+| 参数 | 是否必填 | 默认值 | 说明 |
+|------|----------|--------|------|
+| `--image` | — | `images/image5` | 输入图像路径（可省略扩展名，自动尝试 `.png`/`.jpg`） |
+| `--result-json` | — | `results/image5_result.json` | `process_image.py` 输出的关键点 JSON |
+| `--pixel` | — | `40` | 阶段 2 正方形边长（像素） |
+| `--threshold` | — | `40.0` | 正方形内像素与 P1 RGB 的距离阈值；仅保留距离 **大于** 该值的像素参与 value 计算 |
+| `--C` | — | `1.0` | 软间隔 SVM 惩罚系数 |
+| `--no-contours` | — | — | 不绘制决策边界，仅保留 P1/P2 标记 |
+| `--output` | — | `results/<image>_rgb_svm_boundary.png` | 自定义输出路径 |
+| `--verbose` | — | — | 打印运行详情；默认完全静默 |
+
+#### 示例
+
+```bash
+# 静默运行（默认 image5）
+python heuristic.py
+
+# 指定其他图片
+python heuristic.py \
+  --image images/image1 \
+  --result-json results/image1_result.json \
+  --verbose
+
+# 调整正方形大小与颜色阈值
+python heuristic.py \
+  --image images/image3.png \
+  --result-json results/image3_result.json \
+  --pixel 40 --threshold 50 --verbose
+```
 
 ---
 
@@ -380,12 +474,3 @@ index = 13 × row + col
 行 0 为底线（最靠近左下角），列 0 为左侧边线。详见 `keypoints_topdown.png`。
 
 ![keypoints_topdown](keypoints_topdown.png)
-
----
-
-## 注意事项
-
-- 所有脚本默认优先使用 CUDA；无 GPU 时自动退回 CPU（速度较慢）。
-- `process_image.py` 模块加载时**不会**修改工作目录；所有命令行传入的相对路径均基于用户运行脚本时的目录解析。
-- `dino/models/hub/` 存放 timm 本地权重缓存，若目录为空可运行 `python dino/load_model.py` 触发下载。
-- `.gitignore` 已忽略数据集、压缩包、批量输出文件和缓存，保留 `images/`、`videos/` 样本、`models/*.pth` 和 `results/`。
