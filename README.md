@@ -8,10 +8,16 @@
 
 ```text
 basketball/
+├── process_image_paint.py                      # 单张图片推理（Paint 版，含边线/三秒区加权）
+├── process_image_paint.sh                      # Paint 版示例调用脚本
+├── process_video_paint.py                      # 视频推理（Paint 版）
+├── process_video_paint.sh                      # Paint 版视频示例调用脚本
 ├── process_image.py                            # 单张图片推理脚本
 ├── process_image.sh                            # 示例调用脚本
-├── heuristic.py                                # 启发式边线检测（RGB 原型 + SVM 决策边界）
+├── heuristic.py                                # 启发式边线检测（独立脚本，RGB 原型 + SVM 决策边界）
+├── heuristic.sh                                # heuristic 示例调用脚本
 ├── process_video.py                            # 视频推理脚本（抽帧 + 汇总 JSON）
+├── process_video.sh                            # 视频推理示例调用脚本
 ├── dino/                                       # ConvNeXt 升级模型（训练 + 定义）
 │   ├── model_convnext.py                       #   KaliCalibConvNeXt 模型定义
 │   ├── train.py                                #   微调训练脚本
@@ -28,6 +34,7 @@ basketball/
 ├── camera-calibration-challenge/              # 官方 challenge 基线代码（参考）
 ├── images/                                    # 测试图片（image1.png … image5.png）
 ├── videos/                                    # 测试视频
+├── outputs/                                   # paint 版推理输出目录
 ├── results/                                   # 推理输出目录
 ├── keypoints_topdown.png                      # 91 个关键点俯视图（编号可视化）
 ├── visualize_keypoints_topdown.py             # 生成 keypoints_topdown.png 的脚本
@@ -50,8 +57,130 @@ pip install -r requirements.txt
 
 ## 模型下载
 
-由于 github 的单文件限制，需要在 https://huggingface.co/Jinqi-T/Basketball-Calibration/resolve/main/model_tiny_final.pth 下载 tiny 权重，并保存为 ```dino/checkpoints/tiny_finetune/model_final.pth```。small 权重在 https://huggingface.co/Jinqi-T/Basketball-Calibration/resolve/main/model_small_final.pth ，但是实测效果不好，不建议使用。
+由于 github 的单文件限制，需要在 https://huggingface.co/Jinqi-T/Basketball-Calibration/resolve/main/model_tiny_final.pth 下载 tiny 权重，并保存为 `dino/checkpoints/tiny_finetune/model_final.pth`。small 权重在 https://huggingface.co/Jinqi-T/Basketball-Calibration/resolve/main/model_small_final.pth ，但是实测效果不好，不建议使用。
 
+---
+
+## 单张图片推理（Paint 版）— `process_image_paint.py`
+
+在 `process_image.py` + `heuristic.py` 的基础上，将模型关键点推理与 RGB SVM 边线检测**融合为单一流程**，并通过三秒区角点加权大幅提升单应矩阵精度。
+
+### 快速开始
+
+```bash
+./process_image_paint.sh
+```
+
+```bash
+python process_image_paint.py images/image1.png \
+  --output-dir outputs \
+  --model dino/checkpoints/tiny_finetune/model_final.pth \
+  --valid-model 2022-winners-camera-calibration-challenge/models/model_challenge.pth \
+  --valid-diff-threshold 80 \
+  --threshold 0.9 --check 10 \
+  --clahe --draw-keypoints --print-coords \
+  --court-corner-weight 20 \
+  --paint-corner-weight 20 \
+  --save_segment --verbose
+```
+
+**标定结果（`outputs/image1_calibrated_paint.png`）：**
+
+![calibrated paint](outputs/image1_calibrated_paint.png)
+
+**边线与三秒区分割标注（`outputs/image1_segmented.png`）：**
+
+![segmented](outputs/image1_segmented.png)
+
+### 算法流程
+
+```
+输入图片
+    │
+    ├─── CLAHE 预处理（--clahe）→ image_rgb（供模型推理）
+    └─── 原图                  → heuristic_rgb（供 SVM 边线检测）
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 阶段 1：模型关键点推理                                         │
+│   ConvNeXt-Tiny（DINOv3 预训练）→ 91 个关键点坐标 + 置信度     │
+│   可选：双模型交叉验证（--valid-model）                         │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ 关键点 dict
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 阶段 2：RGB SVM 边线检测（heuristic_rgb，不做 CLAHE）           │
+│   以场地内侧关键点 → 迭代剔除法选取地板颜色原型 P1               │
+│   以边线附近关键点 → 迭代剔除法选取边线颜色原型 P2               │
+│   全图 RGB LinearSVC → decision=0 等高线 = SVM 决策边界        │
+│                                                               │
+│   检测上/下/左/右四条场地边线                                   │
+│     候选线：多档阈值 Hough，Hough 为空时才用 RANSAC 随机配对     │
+│     选线准则：直线上 SVM 决策边界点个数最多                      │
+│     左/右边线：去除上边线场外侧干扰点后重新拟合（trim）            │
+│   检测三秒区四边（上/下/左/右）                                  │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ sideline_detections, paint_detections
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 阶段 3：关键点投影与角点估计                                    │
+│   上/左/右边线上的关键点 → 投影到对应检测边线                    │
+│   上边线∩左边线交点 → 关键点 78 修正                            │
+│   上边线∩右边线交点 → 关键点 90 修正                            │
+│   三秒区四边两两交点 → 计算角点 91–98                           │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ adjusted_kpts（含 91–98）
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 阶段 4：加权单应矩阵估计                                        │
+│   对应点按类型重复添加（整数权重模拟加权 findHomography）：       │
+│     普通模型关键点             weight = --keypoint-weight      │
+│     上边线投影后关键点         weight = --upper-sideline-weight │
+│     下边线关键点               weight = --lower-sideline-weight │
+│     三秒区角点 91–98           weight = --paint-corner-weight  │
+│     边线两两交叉角点（2 个）   weight = --court-corner-weight   │
+│   cv2.findHomography（不使用 RANSAC，依赖权重区分可信度）        │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ H（3×3 单应矩阵）
+                               ▼
+              绘制 NBA 场地线叠加图（红色）→ 输出
+```
+
+### 输出文件
+
+| 文件 | 说明 |
+|------|------|
+| `<image>_calibrated_paint.png` | 标定可视化图（红色 NBA 场地线 + 可选关键点叠加） |
+| `<image>_result_paint.json` | 完整结果 JSON（关键点、边线、三秒区、单应矩阵等） |
+| `<image>_segmented.png` | 边线与三秒区分割标注图（`--save_segment` 时生成） |
+
+### 参数说明
+
+| 参数 | 是否必填 | 默认值 | 说明 |
+|------|----------|--------|------|
+| `input` | ✅ | — | 输入图片路径 |
+| `--output-dir` | ✅ | — | 输出目录 |
+| `--model` | ✅ | — | 模型权重路径（`.pth`） |
+| `--threshold` | — | `0.0` | 置信度阈值 |
+| `--top-k` | — | 全部 | 取置信度最高的 K 个关键点 |
+| `--check` | — | — | 最少有效关键点数量 |
+| `--clahe` | — | — | 对模型输入开启 CLAHE；边线检测始终使用原图 |
+| `--valid-model` | — | — | 验证模型路径 |
+| `--valid-diff-threshold` | — | `20.0` | 两模型关键点平均像素距离上限（px） |
+| `--pixel` | — | `40` | SVM 阶段 2 正方形边长 |
+| `--rgb-threshold` | — | `40.0` | RGB 原型距离阈值 |
+| `--C` | — | `1.0` | 线性 SVM 惩罚系数 |
+| `--keypoint-weight` | — | `1` | 普通模型关键点权重 |
+| `--upper-sideline-weight` | — | `1` | 上边线投影后关键点权重 |
+| `--lower-sideline-weight` | — | `1` | 下边线关键点权重（可为 0） |
+| `--court-corner-weight` | — | `40` | 边线交叉角点权重 |
+| `--paint-corner-weight` | — | `40` | 三秒区角点（91–98）权重 |
+| `--draw-keypoints` | — | — | 在输出图上叠加调整后的关键点 |
+| `--print-coords` | — | — | 配合 `--draw-keypoints` + `--verbose` 打印坐标 |
+| `--save_segment` | — | — | 额外保存边线/三秒区分割标注图 |
+| `--verbose` | — | — | 打印调试信息 |
+
+---
 
 ## 单张图片推理 — `process_image.py`
 
@@ -60,7 +189,7 @@ pip install -r requirements.txt
 ./process_image.sh
 ```
 
-```bash 
+```bash
 python process_image.py images/image1.png \
   --output-dir results \
   --model dino/checkpoints/tiny_finetune/model_final.pth \
@@ -73,8 +202,6 @@ python process_image.py images/image1.png \
 ```
 
 ### 输出文件
-
-每次推理在 `--output-dir` 目录下生成两个文件：
 
 | 文件 | 说明 |
 |------|------|
@@ -111,18 +238,6 @@ python process_image.py images/image1.png \
   --output-dir results \
   --model 2022-winners-camera-calibration-challenge/models/model_challenge.pth \
   --draw-keypoints --print-coords --verbose
-
-# 置信度过滤 + top-k + CLAHE
-python process_image.py images/image1.png \
-  --output-dir results \
-  --model 2022-winners-camera-calibration-challenge/models/model_challenge.pth \
-  --threshold 0.5 --top-k 30 --clahe --verbose
-
-# 使用 dino 微调模型 + 最少关键点检查
-python process_image.py images/image1.png \
-  --output-dir results \
-  --model dino/checkpoints/tiny_finetune/model_500.pth \
-  --threshold 0.9 --check 10 --verbose
 
 # 双模型交叉验证（平均偏差 > 80 px 则输出原始图像）
 python process_image.py images/image1.png \
@@ -162,11 +277,13 @@ python process_image.py images/image1.png \
 
 `status` 取值：`"success"` / `"check_failed"` / `"validation_failed"` / `"insufficient_points"`
 
-### 启发式边线检测 — `heuristic.py`
+---
+
+## 启发式边线检测 — `heuristic.py`
 
 在 `process_image.py` 输出的关键点基础上，**不依赖场地几何模型**，通过颜色启发式自动估计场地边线。脚本读取原图与 `_result.json`，在 RGB 空间中训练软间隔线性 SVM，并绘制决策边界（`decision = 0` 的等高线）。
 
-#### 算法流程
+### 算法流程
 
 ```
 _result.json 关键点
@@ -201,13 +318,13 @@ _result.json 关键点
 **阶段 2 关键点**（边线附近，共 36 个）：
 `78–90, 77, 64, 51, 38, 25, 12–0, 13, 26, 39, 52, 65`
 
-#### 输出示意
+### 输出示意
 
 下图以 `image5` 为例：红色圆点 **P1** 为阶段 1 选中的地板原型点，绿色圆点 **P2** 为阶段 2 选中的边线原型点，紫色细线为 SVM 决策边界。
 
 ![heuristic boundary example](results/image5_rgb_svm_boundary.png)
 
-#### 快速开始
+### 快速开始
 
 需先运行 `process_image.py` 生成对应的 `_result.json`：
 
@@ -218,13 +335,13 @@ python heuristic.py \
   --verbose
 ```
 
-#### 输出文件
+### 输出文件
 
 | 文件 | 说明 |
 |------|------|
 | `<image>_rgb_svm_boundary.png` | 原图叠加 P1、P2 标记与 SVM 决策边界 |
 
-#### 参数说明
+### 参数说明
 
 | 参数 | 是否必填 | 默认值 | 说明 |
 |------|----------|--------|------|
@@ -236,25 +353,6 @@ python heuristic.py \
 | `--no-contours` | — | — | 不绘制决策边界，仅保留 P1/P2 标记 |
 | `--output` | — | `results/<image>_rgb_svm_boundary.png` | 自定义输出路径 |
 | `--verbose` | — | — | 打印运行详情；默认完全静默 |
-
-#### 示例
-
-```bash
-# 静默运行（默认 image5）
-python heuristic.py
-
-# 指定其他图片
-python heuristic.py \
-  --image images/image1 \
-  --result-json results/image1_result.json \
-  --verbose
-
-# 调整正方形大小与颜色阈值
-python heuristic.py \
-  --image images/image3.png \
-  --result-json results/image3_result.json \
-  --pixel 40 --threshold 50 --verbose
-```
 
 ---
 
@@ -355,13 +453,12 @@ python process_video.py videos/game.mp4 \
     "status": "check_failed",
     "homography": null,
     "keypoints": {"...": {}},
-    "check_result": {"valid_count": 3, "required": 10, "passed": false},
-    "...": {}
+    "check_result": {"valid_count": 3, "required": 10, "passed": false}
   }
 ]
 ```
 
-`status` 取值同 `process_image.py`：`"success"` / `"check_failed"` / `"validation_failed"` / `"insufficient_points"`
+`status` 取值：`"success"` / `"check_failed"` / `"validation_failed"` / `"insufficient_points"`
 
 ---
 
@@ -459,7 +556,7 @@ python dino/train.py \
 |------|--------|--------------------------|------------|
 | ResNet-18（原始） | ~14M | ~80 fps | 一般 |
 | ConvNeXt-Tiny | ~35M | ~50 fps | 较好 |
-| ConvNeXt-Small | ~57M | ~35 fps | 最好 |
+| ConvNeXt-Small | - | - | - |
 
 ---
 
