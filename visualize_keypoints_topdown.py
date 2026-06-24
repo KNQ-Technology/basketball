@@ -1,42 +1,67 @@
 #!/usr/bin/env python3
 """
-生成篮球场俯视图，显示 91 个关键点（7×13 网格）的位置与序号。
-坐标单位：cm；X 轴沿球场长度方向（0→2800），Y 轴沿宽度方向（0→1500）。
+生成篮球场俯视图，显示 99 个关键点的位置与序号。
+0~90 为 7×13 网格点，91~98 为左右三秒区角点。
+坐标单位：cm；X 轴沿球场长度方向，Y 轴沿宽度方向。
 """
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patheffects import withStroke
 
-FL = 2800   # court length (cm)
-FW = 1500   # court width  (cm)
+CM_PER_METER = 100.0
+CM_PER_FOOT = 30.48
+
+FL = 28.65 * CM_PER_METER
+FW = 15.24 * CM_PER_METER
+BASKET_X = 5.25 * CM_PER_FOOT
+FREE_THROW_X = 5.80 * CM_PER_METER
+LANE_WIDTH = 4.90 * CM_PER_METER
+CIRCLE_RADIUS = 1.80 * CM_PER_METER
+THREE_POINT_RADIUS = 7.24 * CM_PER_METER
+THREE_POINT_CORNER_DISTANCE = 6.70 * CM_PER_METER
+THREE_POINT_SIDELINE_MARGIN = FW / 2 - THREE_POINT_CORNER_DISTANCE
+THREE_POINT_LINE_X = BASKET_X + np.sqrt(
+    THREE_POINT_RADIUS ** 2 - THREE_POINT_CORNER_DISTANCE ** 2
+)
+THREE_ARC_STOP_ANGLE = np.degrees(
+    np.arcsin(THREE_POINT_CORNER_DISTANCE / THREE_POINT_RADIUS)
+)
 
 
 def _get_field_points():
-    """从 viewds.py 内联的关键点生成逻辑，避免依赖 yacs 等训练时库。"""
+    """Return the 99-point court template used by process_image_heuristic.py."""
     points = []
-    u0, r, u, s = 175, 30, 175, 0
-    for _ in range(7):
+    original_length = 2800.0
+    original_width = 1500.0
+    original_row_y = np.array([1500.0, 1325.0, 1120.0, 885.0, 620.0, 325.0, 0.0])
+    row_y = original_row_y / original_width * FW
+    for y in row_y:
         for i in range(13):
-            points.append([i * FL / 12, FW - s, 0])
-        s += u
-        u += r
+            points.append([i * FL / 12, y, 0])
+
+    lane_top_y = FW / 2 - LANE_WIDTH / 2
+    lane_bottom_y = FW / 2 + LANE_WIDTH / 2
+    points.extend(
+        [
+            [0.0, lane_top_y, 0.0],
+            [FREE_THROW_X, lane_top_y, 0.0],
+            [FREE_THROW_X, lane_bottom_y, 0.0],
+            [0.0, lane_bottom_y, 0.0],
+            [FL, lane_top_y, 0.0],
+            [FL - FREE_THROW_X, lane_top_y, 0.0],
+            [FL - FREE_THROW_X, lane_bottom_y, 0.0],
+            [FL, lane_bottom_y, 0.0],
+        ]
+    )
     return np.array(points, dtype=float)
 
 
-# 91 grid keypoints (7 rows × 13 cols)
-pts = _get_field_points()   # (91, 3): x, y, z=0
+# 0~90 grid keypoints; 91~98 paint-corner keypoints.
+pts = _get_field_points()   # (99, 3): x, y, z=0
 
 # ── Row colours (7 distinct hues) ────────────────────────────────────────────
 COLORS = [plt.cm.hsv(h / 7.0) for h in range(7)]
-
-# ── Row Y-coordinates ─────────────────────────────────────────────────────────
-row_y = []
-u, s = 175, 0
-for _ in range(7):
-    row_y.append(FW - s)
-    s += u
-    u += 30
 
 # ── Figure ────────────────────────────────────────────────────────────────────
 fig, ax = plt.subplots(figsize=(22, 12))
@@ -68,50 +93,51 @@ line(0, FW, 0, 0)
 line(FL/2, 0, FL/2, FW)
 arc(FL/2, FW/2, 180, 0, 360)
 
-# ── Three-point arc angle (exact) ─────────────────────────────────────────────
-# Straight section ends at x=299, y=90 from left basket at (157.5, 750)
-# dx=141.5, dy=660 → angle = arctan2(660, 141.5)
-A3 = np.degrees(np.arctan2(FW/2 - 90, 299 - 157.5))   # ≈ 77.87°
-
 # ── LEFT half ────────────────────────────────────────────────────────────────
 # Key area (5.8 m long, 4.9 m wide centred at midline)
-line(0,  505, 580,  505)
-line(0, FW-505, 580, FW-505)
-line(580, 505, 580, FW-505)
+lane_top_y = FW / 2 - LANE_WIDTH / 2
+lane_bottom_y = FW / 2 + LANE_WIDTH / 2
+line(0, lane_top_y, FREE_THROW_X, lane_top_y)
+line(0, lane_bottom_y, FREE_THROW_X, lane_bottom_y)
+line(FREE_THROW_X, lane_top_y, FREE_THROW_X, lane_bottom_y)
 # Free throw circle
-arc(580, FW/2, 180, 0, 360)
+arc(FREE_THROW_X, FW/2, CIRCLE_RADIUS, 0, 360)
 # Three-point straight sections (90 cm from each sideline)
-line(0,    90, 299,    90)
-line(0, FW-90, 299, FW-90)
+line(0, THREE_POINT_SIDELINE_MARGIN, THREE_POINT_LINE_X, THREE_POINT_SIDELINE_MARGIN)
+line(0, FW-THREE_POINT_SIDELINE_MARGIN, THREE_POINT_LINE_X, FW-THREE_POINT_SIDELINE_MARGIN)
 # Three-point arc: from -A3° to +A3° through 0° (facing centre court)
-arc(157.5, FW/2, 675, -A3, A3)
+arc(BASKET_X, FW/2, THREE_POINT_RADIUS, -THREE_ARC_STOP_ANGLE, THREE_ARC_STOP_ANGLE)
 # Basket dot
-ax.plot(157.5, FW/2, 'o', color='orange', ms=8, zorder=4)
+ax.plot(BASKET_X, FW/2, 'o', color='orange', ms=8, zorder=4)
 
 # ── RIGHT half ────────────────────────────────────────────────────────────────
-line(FL,   505, FL-580,   505)
-line(FL, FW-505, FL-580, FW-505)
-line(FL-580, 505, FL-580, FW-505)
-arc(FL-580, FW/2, 180, 0, 360)
-line(FL,    90, FL-299,    90)
-line(FL, FW-90, FL-299, FW-90)
+line(FL, lane_top_y, FL-FREE_THROW_X, lane_top_y)
+line(FL, lane_bottom_y, FL-FREE_THROW_X, lane_bottom_y)
+line(FL-FREE_THROW_X, lane_top_y, FL-FREE_THROW_X, lane_bottom_y)
+arc(FL-FREE_THROW_X, FW/2, CIRCLE_RADIUS, 0, 360)
+line(FL, THREE_POINT_SIDELINE_MARGIN, FL-THREE_POINT_LINE_X, THREE_POINT_SIDELINE_MARGIN)
+line(FL, FW-THREE_POINT_SIDELINE_MARGIN, FL-THREE_POINT_LINE_X, FW-THREE_POINT_SIDELINE_MARGIN)
 # Three-point arc: from 180°-A3 to 180°+A3 through 180°
-arc(FL-157.5, FW/2, 675, 180-A3, 180+A3)
-ax.plot(FL-157.5, FW/2, 'o', color='orange', ms=8, zorder=4)
+arc(FL-BASKET_X, FW/2, THREE_POINT_RADIUS, 180-THREE_ARC_STOP_ANGLE, 180+THREE_ARC_STOP_ANGLE)
+ax.plot(FL-BASKET_X, FW/2, 'o', color='orange', ms=8, zorder=4)
 
 # ── Keypoints ─────────────────────────────────────────────────────────────────
 stroke = [withStroke(linewidth=2.5, foreground='black')]
 for i, (x, y, _) in enumerate(pts):
-    row = i // 13
-    c = COLORS[row]
-    ax.scatter(x, y, s=480, color=c, zorder=5, edgecolors='black', linewidths=1.0)
+    if i < 91:
+        c = COLORS[i // 13]
+        size = 480
+    else:
+        c = '#ff9800'
+        size = 560
+    ax.scatter(x, y, s=size, color=c, zorder=5, edgecolors='black', linewidths=1.0)
     ax.text(x, y, str(i), fontsize=7.5, ha='center', va='center',
             color='white', fontweight='bold', zorder=6,
             path_effects=stroke)
 
 # ── Axis labels / ticks ───────────────────────────────────────────────────────
 ax.set_xlim(-150, FL + 150)
-# Y 轴翻转：y=1500 在底部（pt 0 在左下角），y=0 在顶部
+# Y 轴翻转：y=FW 在底部（pt 0 在左下角），y=0 在顶部
 ax.set_ylim(FW + 150, -150)
 ax.set_aspect('equal')
 
@@ -124,10 +150,10 @@ ax.set_yticks(np.arange(0, FW+1, 100))
 ax.tick_params(axis='x', colors='#888')
 ax.tick_params(axis='y', colors='#888')
 ax.set_xlabel('X  (cm,  left baseline -> right baseline)', color='#aaa', fontsize=9, labelpad=6)
-ax.set_ylabel('Y  (cm,  pt0=1500 at bottom, pt78=0 at top)', color='#aaa', fontsize=9, labelpad=6)
+ax.set_ylabel(f'Y  (cm,  pt0={FW:.0f} at bottom, pt78=0 at top)', color='#aaa', fontsize=9, labelpad=6)
 
 # ── Title ─────────────────────────────────────────────────────────────────────
-ax.set_title('Basketball Court Keypoints — Top-Down View  |  91 pts = 7 rows x 13 cols',
+ax.set_title('Basketball Court Keypoints — Top-Down View  |  99 pts = 91 grid + 8 paint corners',
              color='white', fontsize=14, pad=12)
 
 # ── Save ──────────────────────────────────────────────────────────────────────

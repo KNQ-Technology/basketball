@@ -1,9 +1,12 @@
-python process_image_heuristic.py images/image3.png \
-  --output-dir results \
+python process_image_paint.py images/image1.png \
+  --output-dir outputs \
   --model dino/checkpoints/tiny_finetune/model_final.pth \
   --valid-model 2022-winners-camera-calibration-challenge/models/model_challenge.pth \
   --valid-diff-threshold 80 \
   --threshold 0.9 \
   --check 10 \
   --clahe --draw-keypoints --print-coords \
+  --court-corner-weight 20 \
+  --paint-corner-weight 20 \
+  --save_segment \
   --verbose
