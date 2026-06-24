@@ -1,0 +1,889 @@
+{
+  "timestamp": "2026-06-24T18:05:37",
+  "input": "/home/tangjinqi/basketball/images/image4.png",
+  "output_dir": "/home/tangjinqi/basketball/outputs",
+  "settings": {
+    "model": "/home/tangjinqi/basketball/dino/checkpoints/tiny_finetune/model_final.pth",
+    "valid_model": "/home/tangjinqi/basketball/2022-winners-camera-calibration-challenge/models/model_challenge.pth",
+    "threshold": 0.95,
+    "top_k": null,
+    "check": 10,
+    "pixel": 40,
+    "rgb_threshold": 40.0,
+    "C": 1.0,
+    "clahe": true,
+    "valid_diff_threshold": 80.0,
+    "keypoint_weight": 1,
+    "upper_sideline_weight": 4,
+    "lower_sideline_weight": 0,
+    "court_corner_weight": 128,
+    "paint_corner_weight": 128,
+    "court_template": {
+      "type": "NBA",
+      "unit": "cm",
+      "length": 2865.0,
+      "width": 1524.0,
+      "line_width": 5.0,
+      "basket_x": 160.02,
+      "free_throw_x": 580.0,
+      "lane_width": 490.00000000000006,
+      "circle_radius": 180.0,
+      "three_point_radius": 724.0,
+      "three_point_corner_distance": 670.0,
+      "three_point_sideline_margin": 92.0
+    }
+  },
+  "status": "success",
+  "model_arch": "convnext_tiny.dinov3_lvd1689m",
+  "valid_model_arch": "resnet18 (original)",
+  "keypoints": {
+    "0": {
+      "img_x": 112.0,
+      "img_y": 468.0,
+      "conf": 0.607665
+    },
+    "1": {
+      "img_x": 223.75,
+      "img_y": 499.25,
+      "conf": 0.980901
+    },
+    "13": {
+      "img_x": 133.42,
+      "img_y": 450.42,
+      "conf": 0.992612
+    },
+    "14": {
+      "img_x": 274.67,
+      "img_y": 463.73,
+      "conf": 0.998223
+    },
+    "15": {
+      "img_x": 498.97,
+      "img_y": 497.55,
+      "conf": 0.9969
+    },
+    "26": {
+      "img_x": 226.93,
+      "img_y": 395.73,
+      "conf": 0.976529
+    },
+    "27": {
+      "img_x": 361.67,
+      "img_y": 422.78,
+      "conf": 0.999873
+    },
+    "28": {
+      "img_x": 547.9,
+      "img_y": 448.2,
+      "conf": 0.9999
+    },
+    "29": {
+      "img_x": 733.0,
+      "img_y": 476.0,
+      "conf": 0.776627
+    },
+    "39": {
+      "img_x": 263.52,
+      "img_y": 362.72,
+      "conf": 0.995485
+    },
+    "40": {
+      "img_x": 404.83,
+      "img_y": 369.47,
+      "conf": 0.999795
+    },
+    "41": {
+      "img_x": 600.19,
+      "img_y": 383.68,
+      "conf": 0.9999
+    },
+    "42": {
+      "img_x": 815.0,
+      "img_y": 460.5,
+      "conf": 0.756516
+    },
+    "43": {
+      "img_x": 916.29,
+      "img_y": 419.43,
+      "conf": 0.940298
+    },
+    "48": {
+      "img_x": 737.71,
+      "img_y": 497.71,
+      "conf": 0.872011
+    },
+    "49": {
+      "img_x": 740.0,
+      "img_y": 500.0,
+      "conf": 0.416855
+    },
+    "52": {
+      "img_x": 337.1,
+      "img_y": 302.81,
+      "conf": 0.999881
+    },
+    "53": {
+      "img_x": 365.76,
+      "img_y": 405.06,
+      "conf": 0.9999
+    },
+    "54": {
+      "img_x": 666.17,
+      "img_y": 328.06,
+      "conf": 0.9999
+    },
+    "55": {
+      "img_x": 841.28,
+      "img_y": 345.47,
+      "conf": 0.996561
+    },
+    "61": {
+      "img_x": 72.0,
+      "img_y": 476.0,
+      "conf": 0.521243
+    },
+    "65": {
+      "img_x": 406.15,
+      "img_y": 253.01,
+      "conf": 0.9999
+    },
+    "66": {
+      "img_x": 586.06,
+      "img_y": 269.05,
+      "conf": 0.9999
+    },
+    "67": {
+      "img_x": 756.86,
+      "img_y": 270.67,
+      "conf": 0.995101
+    },
+    "68": {
+      "img_x": 910.46,
+      "img_y": 286.49,
+      "conf": 0.9999
+    },
+    "78": {
+      "img_x": 525.22,
+      "img_y": 204.12,
+      "conf": 0.997412
+    },
+    "79": {
+      "img_x": 670.94,
+      "img_y": 211.17,
+      "conf": 0.999162
+    },
+    "80": {
+      "img_x": 813.82,
+      "img_y": 220.05,
+      "conf": 0.998715
+    },
+    "81": {
+      "img_x": 945.78,
+      "img_y": 228.25,
+      "conf": 0.998635
+    }
+  },
+  "valid_keypoints": {
+    "0": {
+      "img_x": 81.17,
+      "img_y": 499.11,
+      "conf": 0.998805
+    },
+    "1": {
+      "img_x": 209.45,
+      "img_y": 507.27,
+      "conf": 0.843692
+    },
+    "13": {
+      "img_x": 145.66,
+      "img_y": 446.74,
+      "conf": 0.998699
+    },
+    "14": {
+      "img_x": 284.12,
+      "img_y": 468.21,
+      "conf": 0.99824
+    },
+    "15": {
+      "img_x": 481.58,
+      "img_y": 504.59,
+      "conf": 0.997898
+    },
+    "16": {
+      "img_x": 666.44,
+      "img_y": 527.33,
+      "conf": 0.792245
+    },
+    "26": {
+      "img_x": 204.91,
+      "img_y": 404.76,
+      "conf": 0.9999
+    },
+    "27": {
+      "img_x": 347.56,
+      "img_y": 425.54,
+      "conf": 0.999858
+    },
+    "28": {
+      "img_x": 527.73,
+      "img_y": 440.06,
+      "conf": 0.999597
+    },
+    "29": {
+      "img_x": 713.93,
+      "img_y": 469.79,
+      "conf": 0.973892
+    },
+    "39": {
+      "img_x": 271.65,
+      "img_y": 355.16,
+      "conf": 0.9999
+    },
+    "40": {
+      "img_x": 404.88,
+      "img_y": 384.12,
+      "conf": 0.9999
+    },
+    "41": {
+      "img_x": 609.8,
+      "img_y": 383.63,
+      "conf": 0.9999
+    },
+    "42": {
+      "img_x": 797.81,
+      "img_y": 403.76,
+      "conf": 0.999048
+    },
+    "52": {
+      "img_x": 346.65,
+      "img_y": 298.71,
+      "conf": 0.9999
+    },
+    "53": {
+      "img_x": 485.73,
+      "img_y": 337.11,
+      "conf": 0.9999
+    },
+    "54": {
+      "img_x": 682.86,
+      "img_y": 331.89,
+      "conf": 0.9999
+    },
+    "55": {
+      "img_x": 854.59,
+      "img_y": 347.39,
+      "conf": 0.9999
+    },
+    "56": {
+      "img_x": 949.65,
+      "img_y": 334.82,
+      "conf": 0.949158
+    },
+    "59": {
+      "img_x": 929.33,
+      "img_y": 338.67,
+      "conf": 0.747266
+    },
+    "65": {
+      "img_x": 426.78,
+      "img_y": 246.36,
+      "conf": 0.9999
+    },
+    "66": {
+      "img_x": 581.86,
+      "img_y": 264.26,
+      "conf": 0.9999
+    },
+    "67": {
+      "img_x": 752.68,
+      "img_y": 279.37,
+      "conf": 0.9999
+    },
+    "68": {
+      "img_x": 917.13,
+      "img_y": 288.46,
+      "conf": 0.999891
+    },
+    "78": {
+      "img_x": 504.75,
+      "img_y": 209.08,
+      "conf": 0.997899
+    },
+    "79": {
+      "img_x": 677.76,
+      "img_y": 216.16,
+      "conf": 0.999772
+    },
+    "80": {
+      "img_x": 840.2,
+      "img_y": 227.43,
+      "conf": 0.9999
+    },
+    "81": {
+      "img_x": 951.53,
+      "img_y": 241.41,
+      "conf": 0.98158
+    }
+  },
+  "check_result": {
+    "valid_count": 22,
+    "required": 10,
+    "passed": true
+  },
+  "validation_result": {
+    "ok": true,
+    "message": "验证通过：25 个共同关键点平均偏差 22.9 px（阈值 80.0 px）。",
+    "n_main": 29,
+    "n_valid": 28,
+    "n_common": 25,
+    "mean_dist_px": 22.86,
+    "max_dist_px": 137.87
+  },
+  "adjusted_keypoints": {
+    "0": {
+      "img_x": 112.0,
+      "img_y": 468.0,
+      "conf": 0.607665
+    },
+    "1": {
+      "img_x": 223.75,
+      "img_y": 499.25,
+      "conf": 0.980901
+    },
+    "13": {
+      "img_x": 131.0,
+      "img_y": 447.02,
+      "conf": 0.992612
+    },
+    "14": {
+      "img_x": 274.67,
+      "img_y": 463.73,
+      "conf": 0.998223
+    },
+    "15": {
+      "img_x": 498.97,
+      "img_y": 497.55,
+      "conf": 0.9969
+    },
+    "26": {
+      "img_x": 218.92,
+      "img_y": 384.47,
+      "conf": 0.976529
+    },
+    "27": {
+      "img_x": 361.67,
+      "img_y": 422.78,
+      "conf": 0.999873
+    },
+    "28": {
+      "img_x": 547.9,
+      "img_y": 448.2,
+      "conf": 0.9999
+    },
+    "29": {
+      "img_x": 733.0,
+      "img_y": 476.0,
+      "conf": 0.776627
+    },
+    "39": {
+      "img_x": 258.81,
+      "img_y": 356.1,
+      "conf": 0.995485
+    },
+    "40": {
+      "img_x": 404.83,
+      "img_y": 369.47,
+      "conf": 0.999795
+    },
+    "41": {
+      "img_x": 600.19,
+      "img_y": 383.68,
+      "conf": 0.9999
+    },
+    "42": {
+      "img_x": 815.0,
+      "img_y": 460.5,
+      "conf": 0.756516
+    },
+    "43": {
+      "img_x": 916.29,
+      "img_y": 419.43,
+      "conf": 0.940298
+    },
+    "48": {
+      "img_x": 737.71,
+      "img_y": 497.71,
+      "conf": 0.872011
+    },
+    "49": {
+      "img_x": 740.0,
+      "img_y": 500.0,
+      "conf": 0.416855
+    },
+    "52": {
+      "img_x": 335.96,
+      "img_y": 301.21,
+      "conf": 0.999881
+    },
+    "53": {
+      "img_x": 365.76,
+      "img_y": 405.06,
+      "conf": 0.9999
+    },
+    "54": {
+      "img_x": 666.17,
+      "img_y": 328.06,
+      "conf": 0.9999
+    },
+    "55": {
+      "img_x": 841.28,
+      "img_y": 345.47,
+      "conf": 0.996561
+    },
+    "61": {
+      "img_x": 72.0,
+      "img_y": 476.0,
+      "conf": 0.521243
+    },
+    "65": {
+      "img_x": 405.33,
+      "img_y": 251.86,
+      "conf": 0.9999
+    },
+    "66": {
+      "img_x": 586.06,
+      "img_y": 269.05,
+      "conf": 0.9999
+    },
+    "67": {
+      "img_x": 756.86,
+      "img_y": 270.67,
+      "conf": 0.995101
+    },
+    "68": {
+      "img_x": 910.46,
+      "img_y": 286.49,
+      "conf": 0.9999
+    },
+    "78": {
+      "img_x": 469.89,
+      "img_y": 205.92,
+      "conf": 0.997412
+    },
+    "79": {
+      "img_x": 670.85,
+      "img_y": 213.56,
+      "conf": 0.999162
+    },
+    "80": {
+      "img_x": 813.86,
+      "img_y": 218.99,
+      "conf": 0.998715
+    },
+    "81": {
+      "img_x": 945.94,
+      "img_y": 224.0,
+      "conf": 0.998635
+    },
+    "91": {
+      "img_x": 361.3,
+      "img_y": 282.89,
+      "conf": 1.0
+    },
+    "92": {
+      "img_x": 767.53,
+      "img_y": 316.65,
+      "conf": 1.0
+    },
+    "93": {
+      "img_x": 682.4,
+      "img_y": 414.57,
+      "conf": 1.0
+    },
+    "94": {
+      "img_x": 231.73,
+      "img_y": 376.77,
+      "conf": 1.0
+    }
+  },
+  "heuristic": {
+    "class0": {
+      "keypoint_id": 27,
+      "x": 361.67,
+      "y": 422.78,
+      "rgb": [
+        245.0,
+        206.0,
+        187.0
+      ]
+    },
+    "class1": {
+      "keypoint_id": 80,
+      "x": 813.82,
+      "y": 220.05,
+      "rgb": [
+        66.1,
+        62.0,
+        67.04
+      ]
+    },
+    "decision_contours": 700,
+    "svm": {
+      "coef": [
+        -0.038048419467004546,
+        -0.030614917414173982,
+        -0.027566328305223268
+      ],
+      "intercept": 13.534052460755943
+    }
+  },
+  "sidelines": {
+    "upper": {
+      "detected": true,
+      "line": [
+        -0.03794796422863458,
+        0.999279716601364,
+        -187.9447776853906
+      ],
+      "candidate_points": 967,
+      "line_points": 509,
+      "score": 395.5034728763989,
+      "endpoints": [
+        [
+          451,
+          205
+        ],
+        [
+          959,
+          225
+        ]
+      ]
+    },
+    "lower": {
+      "detected": true,
+      "line": [
+        0.08495082495397287,
+        -0.9963851450817799,
+        471.7282754336977
+      ],
+      "candidate_points": 252,
+      "line_points": 266,
+      "score": 116.94819285667616,
+      "endpoints": [
+        [
+          347,
+          503
+        ],
+        [
+          83,
+          481
+        ]
+      ]
+    },
+    "left": {
+      "detected": true,
+      "line": [
+        -0.579701770986439,
+        -0.814828728454751,
+        440.18743359940095
+      ],
+      "candidate_points": 860,
+      "line_points": 467,
+      "score": 386.72424266428396,
+      "endpoints": [
+        [
+          479,
+          200
+        ],
+        [
+          66,
+          493
+        ]
+      ]
+    },
+    "right": {
+      "detected": false,
+      "line": null,
+      "candidate_points": 0,
+      "line_points": 0,
+      "score": 0.0,
+      "endpoints": null
+    }
+  },
+  "paint_boundaries": {
+    "upper": {
+      "detected": true,
+      "name": "left_paint_upper",
+      "line": [
+        -0.08280813952266303,
+        0.9965655081472543,
+        -252.0
+      ],
+      "candidate_points": 567,
+      "line_points": 415,
+      "score": 269.1317058748554,
+      "endpoints": [
+        [
+          391,
+          285
+        ],
+        [
+          805,
+          320
+        ]
+      ]
+    },
+    "lower": {
+      "detected": true,
+      "name": "left_paint_lower",
+      "line": [
+        -0.08358811531199725,
+        0.9965003898537061,
+        -356.0787569889225
+      ],
+      "candidate_points": 596,
+      "line_points": 404,
+      "score": 357.3567441236257,
+      "endpoints": [
+        [
+          257,
+          379
+        ],
+        [
+          659,
+          413
+        ]
+      ]
+    },
+    "left": {
+      "detected": true,
+      "name": "left_paint_left",
+      "line": [
+        -0.586722871985661,
+        -0.8097877941096037,
+        441.06596004216044
+      ],
+      "candidate_points": 543,
+      "line_points": 167,
+      "score": 228.71938538564984,
+      "endpoints": [
+        [
+          394,
+          259
+        ],
+        [
+          248,
+          365
+        ]
+      ]
+    },
+    "right": {
+      "detected": true,
+      "name": "left_paint_right",
+      "line": [
+        0.7547095801934123,
+        0.6560590290242818,
+        -787.0
+      ],
+      "candidate_points": 220,
+      "line_points": 190,
+      "score": 126.63404529845222,
+      "endpoints": [
+        [
+          655,
+          446
+        ],
+        [
+          790,
+          291
+        ]
+      ]
+    }
+  },
+  "paint_corners": {
+    "detected": true,
+    "paint": "left_paint",
+    "corner_ids": [
+      91,
+      92,
+      93,
+      94
+    ],
+    "corners": {
+      "91": [
+        361.3030334119151,
+        282.8904168325665
+      ],
+      "92": [
+        767.529731497867,
+        316.6452245375525
+      ],
+      "93": [
+        682.4045837392765,
+        414.5705051702045
+      ],
+      "94": [
+        231.73490966965602,
+        376.7675809894302
+      ]
+    }
+  },
+  "adjustments": {
+    "upper": {
+      "detected": true,
+      "adjusted_ids": [
+        78,
+        79,
+        80,
+        81
+      ],
+      "line": [
+        -0.03794796422863458,
+        0.999279716601364,
+        -187.9447776853906
+      ],
+      "candidate_points": 967,
+      "line_points": 509,
+      "score": 395.5034728763989,
+      "endpoints": [
+        [
+          451,
+          205
+        ],
+        [
+          959,
+          225
+        ]
+      ]
+    },
+    "left": {
+      "detected": true,
+      "adjusted_ids": [
+        13,
+        26,
+        39,
+        52,
+        65,
+        78
+      ],
+      "line": [
+        -0.579701770986439,
+        -0.814828728454751,
+        440.18743359940095
+      ],
+      "candidate_points": 860,
+      "line_points": 467,
+      "score": 386.72424266428396,
+      "endpoints": [
+        [
+          479,
+          200
+        ],
+        [
+          66,
+          493
+        ]
+      ]
+    },
+    "right": {
+      "detected": false,
+      "adjusted_ids": []
+    },
+    "intersections": {
+      "78": [
+        469.8870423326879,
+        205.92435825595686
+      ]
+    }
+  },
+  "homography": [
+    [
+      0.6108386818891107,
+      -0.2657519969426791,
+      470.09074255237863
+    ],
+    [
+      0.03147987215562853,
+      0.11523371176601516,
+      204.9714685274204
+    ],
+    [
+      -6.636077800887017e-05,
+      -0.00013917128098334973,
+      1.0
+    ]
+  ],
+  "homography_details": {
+    "method": "cv2.findHomography",
+    "weighting": "integer correspondence repetition",
+    "keypoint_weight": 1,
+    "upper_sideline_weight": 4,
+    "lower_sideline_weight": 0,
+    "court_corner_weight": 128,
+    "paint_corner_weight": 128,
+    "weighted_counts": {
+      "model_keypoints": 17,
+      "upper_sideline_keypoints": 16,
+      "lower_sideline_keypoints": 0,
+      "paint_corners": 512,
+      "court_corners": 256
+    },
+    "weighted_correspondences": 801,
+    "court_corners": [
+      {
+        "name": "court_upper_left",
+        "field": [
+          0.0,
+          0.0
+        ],
+        "image": [
+          469.8870423326879,
+          205.92435825595686
+        ],
+        "weight": 128
+      },
+      {
+        "name": "court_lower_left",
+        "field": [
+          0.0,
+          1524.0
+        ],
+        "image": [
+          83.82226171673348,
+          480.5862954497779
+        ],
+        "weight": 128
+      }
+    ]
+  },
+  "homography_keypoint_ids": [
+    1,
+    13,
+    14,
+    15,
+    26,
+    27,
+    28,
+    39,
+    40,
+    41,
+    52,
+    53,
+    54,
+    55,
+    65,
+    66,
+    67,
+    68,
+    78,
+    79,
+    80,
+    81,
+    91,
+    92,
+    93,
+    94
+  ],
+  "homography_inliers": 11,
+  "homography_mode": "opencv_weighted_findHomography"
+}

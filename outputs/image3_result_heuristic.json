@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-06-24T11:15:00",
+  "timestamp": "2026-06-24T18:32:52",
   "input": "/home/tangjinqi/basketball/images/image3.png",
-  "output_dir": "/home/tangjinqi/basketball/results",
+  "output_dir": "/home/tangjinqi/basketball/outputs",
   "settings": {
     "model": "/home/tangjinqi/basketball/dino/checkpoints/tiny_finetune/model_final.pth",
     "valid_model": "/home/tangjinqi/basketball/2022-winners-camera-calibration-challenge/models/model_challenge.pth",
@@ -13,9 +13,6 @@
     "C": 1.0,
     "clahe": true,
     "valid_diff_threshold": 80.0,
-    "keypoint_weight": 1,
-    "court_corner_weight": 5,
-    "paint_corner_weight": 5,
     "court_template": {
       "type": "NBA",
       "unit": "cm",
@@ -629,23 +626,23 @@
       "conf": 0.99902
     },
     "91": {
-      "img_x": 320.3,
-      "img_y": 262.12,
+      "img_x": 321.09,
+      "img_y": 261.49,
       "conf": 1.0
     },
     "92": {
-      "img_x": 594.09,
-      "img_y": 285.51,
+      "img_x": 588.46,
+      "img_y": 288.41,
       "conf": 1.0
     },
     "93": {
-      "img_x": 508.4,
-      "img_y": 360.49,
+      "img_x": 510.36,
+      "img_y": 361.33,
       "conf": 1.0
     },
     "94": {
-      "img_x": 200.55,
-      "img_y": 330.88,
+      "img_x": 203.95,
+      "img_y": 329.12,
       "conf": 1.0
     }
   },
@@ -758,21 +755,21 @@
       "detected": true,
       "name": "left_paint_upper",
       "line": [
-        0.08514654739750221,
-        -0.9963684386140926,
-        233.89265449457827
+        -0.10018801398297424,
+        0.994968523046909,
+        -228.0
       ],
-      "candidate_points": 316,
-      "line_points": 276,
-      "score": 141.04551102465894,
+      "candidate_points": 307,
+      "line_points": 275,
+      "score": 193.5268528464,
       "endpoints": [
         [
-          589,
-          285
+          314,
+          261
         ],
         [
-          314,
-          262
+          588,
+          288
         ]
       ]
     },
@@ -780,17 +777,17 @@
       "detected": true,
       "name": "left_paint_lower",
       "line": [
-        -0.09573606039319406,
-        0.9954067544177058,
-        -310.16024198592396
+        -0.10452850963771676,
+        0.9945218904945822,
+        -306.0
       ],
-      "candidate_points": 419,
-      "line_points": 313,
-      "score": 169.73472588647022,
+      "candidate_points": 412,
+      "line_points": 312,
+      "score": 222.21235028709893,
       "endpoints": [
         [
-          197,
-          331
+          198,
+          328
         ],
         [
           509,
@@ -802,13 +799,13 @@
       "detected": true,
       "name": "left_paint_left",
       "line": [
-        0.4979865439486034,
-        0.8671847565808141,
-        -386.8063004382559
+        0.499999974763217,
+        0.8660254183549017,
+        -387.0
       ],
-      "candidate_points": 499,
+      "candidate_points": 497,
       "line_points": 149,
-      "score": 258.9246927921533,
+      "score": 258.94317490683375,
       "endpoints": [
         [
           197,
@@ -824,21 +821,21 @@
       "detected": true,
       "name": "left_paint_right",
       "line": [
-        0.6584924059287376,
-        0.7525873712295356,
-        -606.074625680341
+        -0.6824860116281788,
+        -0.7308986550349245,
+        612.4102021740462
       ],
-      "candidate_points": 182,
-      "line_points": 120,
-      "score": 85.01959086059568,
+      "candidate_points": 176,
+      "line_points": 122,
+      "score": 109.75899437053103,
       "endpoints": [
         [
-          492,
-          375
+          591,
+          286
         ],
         [
-          592,
-          288
+          494,
+          377
         ]
       ]
     }
@@ -854,20 +851,20 @@
     ],
     "corners": {
       "91": [
-        320.29537551352666,
-        262.11659236237034
+        321.0939674187802,
+        261.4854247859813
       ],
       "92": [
-        594.0851148363648,
-        285.51381181728226
+        588.4568826728677,
+        288.4074417860532
       ],
       "93": [
-        508.39749596991527,
-        360.48802539395916
+        510.3646713874323,
+        361.32704760592594
       ],
       "94": [
-        200.5518485817992,
-        330.8800994286877
+        203.94555707614649,
+        329.1210864806868
       ]
     }
   },
@@ -942,60 +939,21 @@
   },
   "homography": [
     [
-      0.43050627902226807,
-      -0.2900644841986306,
-      421.2997590578736
+      0.3676549255455147,
+      -0.26115993796985754,
+      416.32820353108474
     ],
     [
-      0.05381371835175,
-      0.035389862831795314,
-      204.42848912301855
+      0.021357584571174995,
+      0.0441689199479787,
+      206.50191663075913
     ],
     [
-      5.5511002892438165e-05,
-      -0.0002872403419314901,
+      -4.282503243361955e-05,
+      -0.0002385750775655303,
       1.0
     ]
   ],
-  "homography_details": {
-    "method": "cv2.findHomography",
-    "weighting": "integer correspondence repetition",
-    "keypoint_weight": 1,
-    "court_corner_weight": 5,
-    "paint_corner_weight": 5,
-    "weighted_counts": {
-      "model_keypoints": 34,
-      "paint_corners": 20,
-      "court_corners": 10
-    },
-    "weighted_correspondences": 64,
-    "court_corners": [
-      {
-        "name": "court_upper_left",
-        "field": [
-          0.0,
-          0.0
-        ],
-        "image": [
-          416.3282035310848,
-          206.5019166307591
-        ],
-        "weight": 5
-      },
-      {
-        "name": "court_lower_left",
-        "field": [
-          0.0,
-          1524.0
-        ],
-        "image": [
-          -52.59359988701795,
-          477.2340278433312
-        ],
-        "weight": 5
-      }
-    ]
-  },
   "homography_keypoint_ids": [
     1,
     2,
@@ -1036,6 +994,6 @@
     93,
     94
   ],
-  "homography_inliers": 15,
-  "homography_mode": "opencv_weighted_findHomography"
+  "homography_inliers": 29,
+  "homography_mode": "constrained_optimization_all_threshold_points"
 }

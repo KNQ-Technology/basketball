@@ -60,6 +60,7 @@ SECOND_KEYPOINT_IDS = [
     13, 26, 39, 52, 65,
 ]
 UPPER_IDS = list(range(78, 91))
+LOWER_IDS = list(range(0, 13))
 LEFT_IDS = [13, 26, 39, 52, 65, 78]
 RIGHT_IDS = [25, 38, 51, 64, 77, 90]
 LINE_KEYPOINT_IDS = {"upper": UPPER_IDS, "left": LEFT_IDS, "right": RIGHT_IDS}
@@ -349,6 +350,10 @@ def line_distances(line: np.ndarray, points: np.ndarray) -> np.ndarray:
     return np.abs(points @ line[:2] + line[2])
 
 
+def line_signed_values(line: np.ndarray, points: np.ndarray) -> np.ndarray:
+    return points @ line[:2] + line[2]
+
+
 def line_direction(line: np.ndarray) -> np.ndarray:
     direction = np.array([line[1], -line[0]], dtype=np.float64)
     norm = np.linalg.norm(direction)
@@ -392,27 +397,60 @@ def _line_from_hough(rho: float, theta: float) -> np.ndarray:
     return np.array([normal[0], normal[1], -rho], dtype=np.float64)
 
 
-def _candidate_lines(points: np.ndarray, max_lines: int = 240) -> list[np.ndarray]:
-    lines = []
-    if len(points) < 2:
-        return lines
+def _rasterize_candidate_points(points: np.ndarray) -> np.ndarray:
     mask = np.zeros((IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
     xy = np.rint(points).astype(np.int32)
     xy[:, 0] = np.clip(xy[:, 0], 0, IMG_WIDTH - 1)
     xy[:, 1] = np.clip(xy[:, 1], 0, IMG_HEIGHT - 1)
     mask[xy[:, 1], xy[:, 0]] = 255
-    raw_lines = cv2.HoughLines(mask, 1, np.pi / 720.0, max(10, min(80, int(np.count_nonzero(mask)) // 12)))
-    if raw_lines is not None:
+    return mask
+
+
+def _candidate_lines(points: np.ndarray, max_lines: int = 240) -> list[np.ndarray]:
+    if len(points) < 2:
+        return []
+    mask = _rasterize_candidate_points(points)
+    unique_points = int(np.count_nonzero(mask))
+    if unique_points < 2:
+        return []
+    thresholds = [
+        max(18, min(120, unique_points // 8)),
+        max(14, min(90, unique_points // 12)),
+        max(10, min(70, unique_points // 18)),
+    ]
+    lines: list[np.ndarray] = []
+    seen: set[tuple[int, int]] = set()
+    for threshold in thresholds:
+        raw_lines = cv2.HoughLines(mask, 1, np.pi / 720.0, threshold)
+        if raw_lines is None:
+            continue
         for raw_line in raw_lines[:max_lines]:
             rho, theta = (float(v) for v in raw_line[0])
+            key = (int(round(rho)), int(round(theta * 1000)))
+            if key in seen:
+                continue
+            seen.add(key)
             lines.append(_line_from_hough(rho, theta))
+            if len(lines) >= max_lines:
+                return lines
+        if lines:
+            break
+    return lines
+
+
+def _ransac_candidate_lines(points: np.ndarray, iterations: int = 300, min_pair_dist: float = 40.0) -> list[np.ndarray]:
+    if len(points) < 2:
+        return []
     rng = np.random.default_rng(0)
-    for _ in range(300):
-        i, j = rng.choice(len(points), size=2, replace=False)
-        if np.linalg.norm(points[i] - points[j]) >= 40.0:
-            line = fit_line_pca(np.array([points[i], points[j]], dtype=np.float64))
-            if line is not None:
-                lines.append(line)
+    lines = []
+    n = len(points)
+    for _ in range(iterations):
+        i, j = rng.choice(n, size=2, replace=False)
+        if np.linalg.norm(points[i] - points[j]) < min_pair_dist:
+            continue
+        line = fit_line_pca(np.array([points[i], points[j]], dtype=np.float64))
+        if line is not None:
+            lines.append(line)
     return lines
 
 
@@ -432,10 +470,13 @@ def fit_line_from_candidate_points(points: np.ndarray, anchors: np.ndarray, inli
     _ = anchors
     if len(points) < 2:
         return None, np.empty((0, 2), dtype=np.float64)
+    candidate_lines = _candidate_lines(points)
+    if not candidate_lines:
+        candidate_lines = _ransac_candidate_lines(points)
     best_line = None
     best_mask = None
     best_key = (-1, -1.0, -float("inf"))
-    for line in _candidate_lines(points):
+    for line in candidate_lines:
         count, span, residual, mask = _line_score(line, points, inlier_px)
         key = (count, span, -residual)
         if count >= 2 and key > best_key:
@@ -474,6 +515,58 @@ def sample_line_points(line: np.ndarray, span_points: np.ndarray, margin_px: flo
     return pts, ((int(pts[0, 0]), int(pts[0, 1])), (int(pts[-1, 0]), int(pts[-1, 1])))
 
 
+def trim_side_detection_against_upper(
+    detection: SidelineDetection,
+    upper_detection: SidelineDetection,
+    side_anchors: np.ndarray,
+    margin_px: float = 3.0,
+) -> SidelineDetection:
+    """去除位于上边线场外一侧的干扰候选点后，按候选点最多的直线重新拟合该侧边线。"""
+    if (
+        detection.line is None
+        or upper_detection.line is None
+        or len(detection.candidate_points) < 2
+        or len(side_anchors) == 0
+    ):
+        return detection
+
+    anchor_values = line_signed_values(upper_detection.line, side_anchors)
+    nonzero_values = anchor_values[np.abs(anchor_values) > margin_px]
+    if len(nonzero_values) == 0:
+        return detection
+
+    field_side_sign = 1.0 if float(np.median(nonzero_values)) >= 0 else -1.0
+    candidate_values = line_signed_values(upper_detection.line, detection.candidate_points)
+    keep = candidate_values * field_side_sign >= -margin_px
+    filtered = detection.candidate_points[keep]
+    if len(filtered) < 2:
+        return detection
+
+    line, inliers = fit_line_from_candidate_points(filtered, side_anchors)
+    if line is None or len(inliers) < 2:
+        line = robust_fit_line(filtered, trim_px=5.0)
+        if line is None:
+            return detection
+        inliers = filtered[line_distances(line, filtered) <= 3.0]
+        if len(inliers) < 2:
+            inliers = filtered
+
+    line_points, endpoints = sample_line_points(line, inliers, margin_px=3.0)
+    residual = float(np.mean(line_distances(line, inliers))) if len(inliers) else 0.0
+    score = float(len(inliers)) / max(residual + 1.0, 1.0)
+
+    return SidelineDetection(
+        detection.side,
+        detection.keypoint_ids,
+        detection.anchor_points,
+        inliers,
+        line_points,
+        endpoints,
+        line,
+        score,
+    )
+
+
 def detect_sidelines(keypoints: dict, contours: list[np.ndarray]) -> dict[str, SidelineDetection]:
     contour_points = _collect_contour_points(contours)
     detections = {}
@@ -493,6 +586,19 @@ def detect_sidelines(keypoints: dict, contours: list[np.ndarray]) -> dict[str, S
                 residual = float(np.mean(line_distances(line, candidates)))
                 score = float(len(candidates)) / max(residual + 1.0, 1.0)
         detections[side] = SidelineDetection(side, kpt_ids, anchors, candidates, line_points, endpoints, line, score)
+
+    upper_detection = detections.get("upper")
+    if upper_detection is not None and upper_detection.line is not None:
+        for side in ("left", "right"):
+            detection = detections.get(side)
+            if detection is None:
+                continue
+            detections[side] = trim_side_detection_against_upper(
+                detection,
+                upper_detection,
+                detection.anchor_points,
+            )
+
     return detections
 
 
@@ -761,6 +867,8 @@ def _estimate_homography_opencv(
     keypoint_weight: int,
     court_corner_weight: int,
     paint_corner_weight: int,
+    upper_sideline_weight: int = 1,
+    lower_sideline_weight: int = 1,
 ) -> tuple[np.ndarray | None, list[int], int, str, dict]:
     field_points = get_nba_field_points()[:, :2].astype(np.float64)
     use_ids = [
@@ -777,18 +885,35 @@ def _estimate_homography_opencv(
 
     src: list[np.ndarray] = []
     dst: list[np.ndarray] = []
+    _upper_sideline_ids = set(UPPER_IDS)
+    _lower_sideline_ids = set(LOWER_IDS)
     weighted_counts = {
         "model_keypoints": 0,
+        "upper_sideline_keypoints": 0,
+        "lower_sideline_keypoints": 0,
         "paint_corners": 0,
         "court_corners": 0,
     }
 
     for idx in use_ids:
         x, y, _ = adjusted_kpts[idx]
-        weight = paint_corner_weight if idx in PAINT_CORNER_IDS else keypoint_weight
+        if idx in PAINT_CORNER_IDS:
+            weight = paint_corner_weight
+        elif idx in _upper_sideline_ids:
+            weight = upper_sideline_weight
+        elif idx in _lower_sideline_ids:
+            weight = lower_sideline_weight
+        else:
+            weight = keypoint_weight
+        if weight == 0:
+            continue
         _repeat_correspondence(src, dst, field_points[idx], np.array([x, y]), weight)
         if idx in PAINT_CORNER_IDS:
             weighted_counts["paint_corners"] += weight
+        elif idx in _upper_sideline_ids:
+            weighted_counts["upper_sideline_keypoints"] += weight
+        elif idx in _lower_sideline_ids:
+            weighted_counts["lower_sideline_keypoints"] += weight
         else:
             weighted_counts["model_keypoints"] += weight
 
@@ -809,6 +934,8 @@ def _estimate_homography_opencv(
         "method": "cv2.findHomography",
         "weighting": "integer correspondence repetition",
         "keypoint_weight": keypoint_weight,
+        "upper_sideline_weight": upper_sideline_weight,
+        "lower_sideline_weight": lower_sideline_weight,
         "court_corner_weight": court_corner_weight,
         "paint_corner_weight": paint_corner_weight,
         "weighted_counts": weighted_counts,
@@ -866,6 +993,8 @@ def main() -> None:
     parser.add_argument("--rgb-threshold", type=float, default=40.0, help="RGB 原型距离阈值")
     parser.add_argument("--C", type=float, default=1.0, help="RGB 线性 SVM 惩罚系数")
     parser.add_argument("--keypoint-weight", type=int, default=1, help="普通模型关键点权重")
+    parser.add_argument("--upper-sideline-weight", type=int, default=1, help="调整后上边线关键点权重（不含角点）")
+    parser.add_argument("--lower-sideline-weight", type=int, default=1, help="下边线关键点权重（不含角点，可为0）")
     parser.add_argument("--court-corner-weight", type=int, default=40, help="球场角点权重")
     parser.add_argument("--paint-corner-weight", type=int, default=40, help="三秒区角点权重")
     parser.add_argument("--save_segment", action="store_true", help="保存 <image>_segmented.png 分割标注图")
@@ -900,6 +1029,8 @@ def main() -> None:
             "clahe": args.clahe,
             "valid_diff_threshold": args.valid_diff_threshold,
             "keypoint_weight": args.keypoint_weight,
+            "upper_sideline_weight": args.upper_sideline_weight,
+            "lower_sideline_weight": args.lower_sideline_weight,
             "court_corner_weight": args.court_corner_weight,
             "paint_corner_weight": args.paint_corner_weight,
             "court_template": {
@@ -1030,6 +1161,8 @@ def main() -> None:
         args.threshold,
         args.top_k,
         keypoint_weight=args.keypoint_weight,
+        upper_sideline_weight=args.upper_sideline_weight,
+        lower_sideline_weight=args.lower_sideline_weight,
         court_corner_weight=args.court_corner_weight,
         paint_corner_weight=args.paint_corner_weight,
     )

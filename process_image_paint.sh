@@ -3,10 +3,12 @@ python process_image_paint.py images/image1.png \
   --model dino/checkpoints/tiny_finetune/model_final.pth \
   --valid-model 2022-winners-camera-calibration-challenge/models/model_challenge.pth \
   --valid-diff-threshold 80 \
-  --threshold 0.9 \
+  --threshold 0.95 \
   --check 10 \
   --clahe --draw-keypoints --print-coords \
-  --court-corner-weight 20 \
-  --paint-corner-weight 20 \
+  --court-corner-weight 128 \
+  --paint-corner-weight 128 \
+  --upper-sideline-weight 4 \
+  --lower-sideline-weight 0 \
   --save_segment \
   --verbose
